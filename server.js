@@ -70,6 +70,7 @@ SITE["index.html"] = `<!DOCTYPE html>
 <script src="script.js" defer></script>
 </head>
 <body>
+<div class="topbar"><div class="container"><div class="links"><a href="https://wa.me/94770000000" target="_blank">💬 WhatsApp</a><a href="tel:+94770000000">📞 +94 77 000 0000</a></div><a href="contact.html">Talk to us →</a></div></div>
 
 <header>
   <div class="container nav">
@@ -88,6 +89,7 @@ SITE["index.html"] = `<!DOCTYPE html>
 
 <!-- HERO -->
 <section class="hero">
+  <video class="hero-video" autoplay muted loop playsinline><source src="assets/video/hero.mp4" type="video/mp4"></video>
   <div class="container hero-grid">
     <div>
       <span class="tag">Smart Education &amp; Tuition Solution</span>
@@ -102,13 +104,13 @@ SITE["index.html"] = `<!DOCTYPE html>
     <div class="float">
       <svg viewBox="0 0 460 420" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Smart card and dashboard illustration">
         <defs>
-          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f46e5"/><stop offset="1" stop-color="#8b5cf6"/></linearGradient>
+          <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b1a"/><stop offset="1" stop-color="#ff9a4d"/></linearGradient>
           <linearGradient id="g2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f59e0b"/><stop offset="1" stop-color="#fb7185"/></linearGradient>
         </defs>
         <rect x="30" y="40" width="330" height="230" rx="22" fill="#fff" stroke="#e2e8f0"/>
         <rect x="30" y="40" width="330" height="40" rx="22" fill="#0f172a"/>
         <circle cx="54" cy="60" r="5" fill="#fb7185"/><circle cx="72" cy="60" r="5" fill="#fbbf24"/><circle cx="90" cy="60" r="5" fill="#34d399"/>
-        <rect x="52" y="100" width="90" height="60" rx="12" fill="#eef2ff"/><text x="64" y="128" font-size="12" fill="#64748b">Students</text><text x="64" y="150" font-size="20" font-weight="700" fill="#4f46e5">1,248</text>
+        <rect x="52" y="100" width="90" height="60" rx="12" fill="#fff1e8"/><text x="64" y="128" font-size="12" fill="#64748b">Students</text><text x="64" y="150" font-size="20" font-weight="700" fill="#ff6b1a">1,248</text>
         <rect x="152" y="100" width="90" height="60" rx="12" fill="#fef3c7"/><text x="164" y="128" font-size="12" fill="#64748b">Present</text><text x="164" y="150" font-size="20" font-weight="700" fill="#d97706">96%</text>
         <rect x="252" y="100" width="90" height="60" rx="12" fill="#d1fae5"/><text x="264" y="128" font-size="12" fill="#64748b">Fees</text><text x="264" y="150" font-size="20" font-weight="700" fill="#059669">Rs 480k</text>
         <g fill="url(#g1)"><rect x="60" y="215" width="22" height="35" rx="4"/><rect x="95" y="195" width="22" height="55" rx="4"/><rect x="130" y="205" width="22" height="45" rx="4"/><rect x="165" y="180" width="22" height="70" rx="4"/><rect x="200" y="200" width="22" height="50" rx="4"/><rect x="235" y="170" width="22" height="80" rx="4"/><rect x="270" y="190" width="22" height="60" rx="4"/><rect x="305" y="175" width="22" height="75" rx="4"/></g>
@@ -173,14 +175,14 @@ SITE["index.html"] = `<!DOCTYPE html>
     </div>
     <div class="split-art reveal">
       <svg viewBox="0 0 400 300"><rect x="20" y="20" width="360" height="260" rx="20" fill="#fff"/>
-        <rect x="40" y="44" width="150" height="14" rx="7" fill="#c7d2fe"/>
+        <rect x="40" y="44" width="150" height="14" rx="7" fill="#ffd2b3"/>
         <g font-size="13" fill="#334155"><text x="40" y="100">Kasun P.</text><text x="40" y="136">Nimali S.</text><text x="40" y="172">Ravindu D.</text><text x="40" y="208">Sanduni W.</text></g>
         <g font-size="12" font-weight="700"><rect x="190" y="84" width="70" height="22" rx="11" fill="#d1fae5"/><text x="203" y="99" fill="#059669">Present</text>
         <rect x="190" y="120" width="70" height="22" rx="11" fill="#d1fae5"/><text x="203" y="135" fill="#059669">Present</text>
         <rect x="190" y="156" width="70" height="22" rx="11" fill="#fee2e2"/><text x="208" y="171" fill="#dc2626">Absent</text>
         <rect x="190" y="192" width="70" height="22" rx="11" fill="#d1fae5"/><text x="203" y="207" fill="#059669">Present</text></g>
         <g font-size="12" fill="#64748b"><text x="290" y="99">Paid</text><text x="290" y="135">Paid</text><text x="290" y="171">Due</text><text x="290" y="207">Paid</text></g>
-        <rect x="40" y="236" width="320" height="26" rx="13" fill="#4f46e5"/><text x="148" y="254" font-size="12" fill="#fff" font-weight="700">SMS sent to parents ✔</text>
+        <rect x="40" y="236" width="320" height="26" rx="13" fill="#ff6b1a"/><text x="148" y="254" font-size="12" fill="#fff" font-weight="700">SMS sent to parents ✔</text>
       </svg>
     </div>
   </div>
@@ -322,6 +324,7 @@ SITE["products.html"] = `<!DOCTYPE html>
 <script src="script.js" defer></script>
 </head>
 <body>
+<div class="topbar"><div class="container"><div class="links"><a href="https://wa.me/94770000000" target="_blank">💬 WhatsApp</a><a href="tel:+94770000000">📞 +94 77 000 0000</a></div><a href="contact.html">Talk to us →</a></div></div>
 
 <header>
   <div class="container nav">
@@ -350,11 +353,11 @@ SITE["products.html"] = `<!DOCTYPE html>
 <section id="smart-card">
   <div class="container split">
     <div class="split-art reveal">
-      <svg viewBox="0 0 360 240"><defs><linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4f46e5"/><stop offset="1" stop-color="#a78bfa"/></linearGradient></defs>
+      <svg viewBox="0 0 360 240"><defs><linearGradient id="c1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6b1a"/><stop offset="1" stop-color="#ffb27a"/></linearGradient></defs>
         <rect x="30" y="30" width="300" height="180" rx="20" fill="url(#c1)"/>
         <rect x="55" y="70" width="48" height="36" rx="7" fill="#fde68a"/>
         <text x="55" y="160" fill="#fff" font-size="20" font-weight="700">STUDENT ID CARD</text>
-        <text x="55" y="184" fill="#e0e7ff" font-size="12">Name · Class · Reg No.</text>
+        <text x="55" y="184" fill="#ffe3d1" font-size="12">Name · Class · Reg No.</text>
         <path d="M280 70q18 18 0 36M292 62q28 26 0 52" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/>
       </svg>
     </div>
@@ -380,10 +383,10 @@ SITE["products.html"] = `<!DOCTYPE html>
     </div>
     <div class="split-art reveal">
       <svg viewBox="0 0 300 340"><rect x="80" y="10" width="140" height="300" rx="22" fill="#0f172a"/>
-        <rect x="92" y="34" width="116" height="150" rx="10" fill="#4f46e5"/>
+        <rect x="92" y="34" width="116" height="150" rx="10" fill="#ff6b1a"/>
         <text x="106" y="70" fill="#fff" font-size="13" font-weight="700">Fee Received</text>
         <text x="106" y="100" fill="#fde68a" font-size="22" font-weight="800">Rs 2,500</text>
-        <text x="106" y="128" fill="#c7d2fe" font-size="11">Kasun P. · Maths</text>
+        <text x="106" y="128" fill="#ffd2b3" font-size="11">Kasun P. · Maths</text>
         <rect x="106" y="146" width="88" height="22" rx="11" fill="#10b981"/><text x="124" y="161" fill="#fff" font-size="11" font-weight="700">PAID ✔</text>
         <rect x="100" y="196" width="100" height="70" rx="8" fill="#1e293b"/>
         <g fill="#334155"><circle cx="118" cy="283" r="7"/><circle cx="150" cy="283" r="7"/><circle cx="182" cy="283" r="7"/></g>
@@ -441,11 +444,12 @@ SITE["contact.html"] = `<!DOCTYPE html>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contact | ClassNova</title>
-<meta name="description" content="Request a demo or get a quote for tuition class management software.">
+<meta name="description" content="Talk to ClassNova: request a demo or get a quote for tuition class management software.">
 <link rel="stylesheet" href="style.css">
 <script src="script.js" defer></script>
 </head>
 <body>
+<div class="topbar"><div class="container"><div class="links"><a href="https://wa.me/94770000000" target="_blank">💬 WhatsApp</a><a href="tel:+94770000000">📞 +94 77 000 0000</a></div><a href="contact.html">Talk to us →</a></div></div>
 
 <header>
   <div class="container nav">
@@ -456,72 +460,124 @@ SITE["contact.html"] = `<!DOCTYPE html>
       <a href="index.html#pricing">Pricing</a>
       <a href="index.html#faq">Help</a>
       <a href="contact.html">Contact</a>
-      <a href="contact.html" class="btn btn-primary">Request Demo</a>
+      <a href="contact.html" class="btn btn-primary">Talk to us</a>
     </nav>
     <button class="burger" aria-label="Menu">☰</button>
   </div>
 </header>
 
-<section class="page-hero">
+<!-- HERO -->
+<section class="talk-hero">
+  <video class="hero-video" autoplay muted loop playsinline><source src="assets/video/contact.mp4" type="video/mp4"></video>
   <div class="container">
-    <span class="tag">Let's connect</span>
-    <h1 style="font-size:clamp(2rem,4vw,3rem)">Request a free demo</h1>
-    <p class="lead" style="margin:14px auto 0">Fill in your details and we'll get back to you on WhatsApp.</p>
+    <span class="tag" style="background:rgba(255,255,255,.12);color:#ffd2b3">Contact us</span>
+    <h1>Let's Talk Today</h1>
+    <p>Tell us about your institute and we'll show you how smart cards, fee tracking and parent alerts can work for you.</p>
   </div>
 </section>
 
+<!-- INTRO + OFFICES -->
 <section>
-  <div class="container split" style="align-items:start">
+  <div class="container center">
+    <h2>Tuition Software Experts</h2>
+    <p class="lead">Get in touch with ClassNova today. Our team will arrange a free demo, answer your questions and prepare a custom quote.</p>
+    <div class="office-grid" style="text-align:left">
+      <div class="office reveal"><div class="flag">🇱🇰</div><h3>Sri Lanka (Head Office)</h3><p>📞 +94 11 000 0000</p><p>💬 +94 77 000 0000</p><p>✉️ hello@yourdomain.lk</p><p>📍 No. 1, Main Street, Colombo</p><a class="dir" href="https://maps.google.com/?q=Colombo" target="_blank">Get Directions →</a></div>
+      <div class="office reveal"><div class="flag">🏫</div><h3>Kandy Branch</h3><p>📞 +94 81 000 0000</p><p>✉️ kandy@yourdomain.lk</p><p>📍 Kandy, Sri Lanka</p><a class="dir" href="https://maps.google.com/?q=Kandy" target="_blank">Get Directions →</a></div>
+      <div class="office reveal"><div class="flag">🏢</div><h3>Galle Branch</h3><p>📞 +94 91 000 0000</p><p>✉️ galle@yourdomain.lk</p><p>📍 Galle, Sri Lanka</p><a class="dir" href="https://maps.google.com/?q=Galle" target="_blank">Get Directions →</a></div>
+    </div>
+  </div>
+</section>
+
+<!-- INQUIRY -->
+<section style="background:#fff">
+  <div class="container inquiry">
     <div class="card reveal">
-      <h3 style="margin-bottom:18px">Send us a message</h3>
-      <form data-wa="contact">
+      <span class="tag">Make an inquiry</span>
+      <h2 style="font-size:1.8rem">Send us a message</h2>
+      <form data-wa="contact" style="margin-top:18px">
+        <div class="field"><label>Your name *</label><input name="Name" required></div>
         <div class="row">
-          <div class="field"><label>Institute name</label><input name="Institute" required></div>
-          <div class="field"><label>Teacher / contact name</label><input name="Name" required></div>
+          <div class="field"><label>Contact number *</label><input name="Mobile" type="tel" required></div>
+          <div class="field"><label>E-mail</label><input name="Email" type="email"></div>
         </div>
         <div class="row">
-          <div class="field"><label>Mobile number</label><input name="Mobile" type="tel" required></div>
+          <div class="field"><label>Institute name *</label><input name="Institute" required></div>
           <div class="field"><label>Interested in</label>
             <select name="Interest"><option>Full package</option><option>Smart cards</option><option>Android POS</option><option>Software only</option></select></div>
         </div>
         <div class="field"><label>Message</label><textarea name="Message" rows="4"></textarea></div>
-        <button class="btn btn-primary" type="submit">Send via WhatsApp</button>
+        <button class="btn btn-primary" type="submit">Send inquiry →</button>
       </form>
     </div>
-
-    <div class="reveal">
-      <h2>Talk to an expert</h2>
-      <p class="lead">Our team is ready to answer questions, show a live demo and prepare a custom quote.</p>
-      <ul class="info-list" style="margin-top:20px">
-        <li><span class="ico">📞</span><div><b>Hotline</b><br>+94 11 000 0000</div></li>
-        <li><span class="ico">💬</span><div><b>WhatsApp</b><br>+94 77 000 0000</div></li>
-        <li><span class="ico">✉️</span><div><b>Email</b><br>hello@yourdomain.lk</div></li>
-        <li><span class="ico">📍</span><div><b>Office</b><br>Colombo, Sri Lanka</div></li>
+    <div class="art-panel reveal">
+      <h2 style="color:#fff">Why talk to us?</h2>
+      <ul>
+        <li>✔ Free live demo for your institute</li>
+        <li>✔ Custom quote within 24 hours</li>
+        <li>✔ Free installation &amp; staff training</li>
+        <li>✔ 24/7 support after setup</li>
       </ul>
-      <div class="map-ph">Map placeholder — embed your Google Map here</div>
+      <svg viewBox="0 0 300 160" style="margin-top:26px"><rect x="10" y="20" width="280" height="120" rx="18" fill="rgba(255,255,255,.08)"/><circle cx="70" cy="80" r="30" fill="#ff6b1a"/><text x="70" y="86" text-anchor="middle" font-size="20" fill="#fff" font-weight="800">1</text><rect x="120" y="62" width="140" height="12" rx="6" fill="#ffd2b3"/><rect x="120" y="86" width="100" height="12" rx="6" fill="rgba(255,255,255,.35)"/></svg>
     </div>
   </div>
 </section>
 
+<!-- FAQ -->
+<section id="faq">
+  <div class="container">
+    <div class="center"><span class="tag">FAQ</span><h2>Common questions</h2></div>
+    <div class="faq">
+      <div class="faq-item"><button class="faq-q">How quickly will I get a response? <span>+</span></button><div class="faq-a">We reply to most inquiries within a few hours during working time, and always within one working day.</div></div>
+      <div class="faq-item"><button class="faq-q">Can you visit my institute for a demo? <span>+</span></button><div class="faq-a">Yes. We can demo online or visit institutes island-wide.</div></div>
+      <div class="faq-item"><button class="faq-q">Do you give a custom quote? <span>+</span></button><div class="faq-a">Yes. Tell us what you need (software, cards, POS, readers) and we'll prepare a quote.</div></div>
+      <div class="faq-item"><button class="faq-q">Is support included after setup? <span>+</span></button><div class="faq-a">Yes. Training and 24/7 support come with every package.</div></div>
+      <div class="faq-item"><button class="faq-q">Can I use my existing student cards? <span>+</span></button><div class="faq-a">Most standard NFC/RFID cards work. We confirm compatibility during the demo.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- TRUST -->
+<div class="container">
+  <div class="trust reveal">
+    <div class="badge">Trusted<br>Partner</div>
+    <div>
+      <h2 style="font-size:1.7rem">Your growth partner in tuition technology</h2>
+      <p class="lead" style="margin-bottom:18px">Replace this text with your real credentials, years of experience and awards.</p>
+      <a href="#" class="btn btn-primary" onclick="window.scrollTo({top:0,behavior:'smooth'});return false;">Talk to Us</a>
+    </div>
+  </div>
+</div>
+
 <footer>
   <div class="container foot-grid">
-    <div><a class="logo" style="color:#fff"><i>N</i> ClassNova</a><p style="margin-top:14px;font-size:.92rem">Smart card &amp; tuition class management solutions for Sri Lankan institutes.</p></div>
+    <div><a class="logo" style="color:#fff"><i>N</i> ClassNova</a><p style="margin-top:14px;font-size:.92rem">Smart card &amp; tuition class management solutions for Sri Lankan institutes.</p>
+      <div class="social"><a href="#">f</a><a href="#">in</a><a href="#">ig</a></div></div>
     <div><h4>Products</h4><ul><li><a href="products.html">Class &amp; Fee Management</a></li><li><a href="products.html">Smart Cards</a></li><li><a href="products.html">Android POS</a></li><li><a href="products.html">Mobile App</a></li></ul></div>
     <div><h4>Company</h4><ul><li><a href="index.html#pricing">Pricing</a></li><li><a href="index.html#faq">Help</a></li><li><a href="contact.html">Contact</a></li></ul></div>
-    <div><h4>Contact</h4><ul><li>Colombo, Sri Lanka</li><li>+94 77 000 0000</li><li>hello@yourdomain.lk</li></ul></div>
+    <div><h4>Contact</h4><ul><li>Colombo, Sri Lanka</li><li>+94 77 000 0000</li><li>hello@yourdomain.lk</li></ul>
+      <a href="contact.html" class="btn btn-primary" style="margin-top:10px">LET'S TALK</a></div>
   </div>
+  <div class="container"><div class="clocks"><div class="clock">Sri Lanka<b id="clk-lk">--:--</b></div><div class="clock">UK<b id="clk-uk">--:--</b></div><div class="clock">UAE<b id="clk-ae">--:--</b></div></div></div>
   <div class="container copy">© 2026 ClassNova. All rights reserved.</div>
 </footer>
 
 <a class="wa-float" href="https://wa.me/94770000000" target="_blank" aria-label="WhatsApp">💬</a>
+<script>
+(function(){
+  var z={"clk-lk":"Asia/Colombo","clk-uk":"Europe/London","clk-ae":"Asia/Dubai"};
+  function tick(){for(var id in z){var e=document.getElementById(id);if(e)e.textContent=new Date().toLocaleTimeString("en-GB",{timeZone:z[id],hour:"2-digit",minute:"2-digit"});}}
+  tick();setInterval(tick,30000);
+})();
+</script>
 </body>
 </html>
 `;
 
 // ===================== style.css =====================
 SITE["style.css"] = `:root{
-  --primary:#4f46e5;--primary-d:#3730a3;--accent:#f59e0b;--ink:#0f172a;--muted:#64748b;
-  --bg:#f8fafc;--card:#ffffff;--line:#e2e8f0;--ok:#10b981;--radius:18px;
+  --primary:#ff6b1a;--primary-d:#e0560a;--accent:#ffb703;--ink:#0a1128;--muted:#64748b;
+  --bg:#f6f7fb;--card:#ffffff;--line:#e2e8f0;--ok:#10b981;--radius:18px;
   --shadow:0 10px 30px rgba(15,23,42,.08);
 }
 *{box-sizing:border-box;margin:0;padding:0}
@@ -537,9 +593,9 @@ h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:800;margin-bottom:12px}
 h3{font-size:1.2rem;font-weight:700;margin-bottom:6px}
 p.lead{color:var(--muted);font-size:1.08rem;max-width:640px}
 .center{text-align:center}.center p.lead{margin:auto}
-.tag{display:inline-block;background:#eef2ff;color:var(--primary);font-weight:600;font-size:.8rem;padding:6px 14px;border-radius:999px;margin-bottom:14px}
+.tag{display:inline-block;background:#fff1e8;color:var(--primary);font-weight:600;font-size:.8rem;padding:6px 14px;border-radius:999px;margin-bottom:14px}
 .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 26px;border-radius:999px;font-weight:600;border:2px solid transparent;cursor:pointer;transition:.25s;font-size:1rem;font-family:inherit}
-.btn-primary{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(79,70,229,.3)}
+.btn-primary{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(255,107,26,.3)}
 .btn-primary:hover{background:var(--primary-d);transform:translateY(-2px)}
 .btn-ghost{border-color:var(--primary);color:var(--primary);background:transparent}
 .btn-ghost:hover{background:var(--primary);color:#fff}
@@ -549,13 +605,13 @@ p.lead{color:var(--muted);font-size:1.08rem;max-width:640px}
 header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
 .nav{display:flex;align-items:center;justify-content:space-between;height:72px}
 .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.35rem}
-.logo i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),#8b5cf6);display:grid;place-items:center;color:#fff;font-style:normal;font-size:1.1rem}
+.logo i{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--primary),#ff9a4d);display:grid;place-items:center;color:#fff;font-style:normal;font-size:1.1rem}
 .menu{display:flex;gap:26px;align-items:center;font-weight:500}
 .menu a:hover,.menu a.active{color:var(--primary)}
 .burger{display:none;background:none;border:0;font-size:1.8rem;cursor:pointer}
 
 /* hero */
-.hero{background:radial-gradient(1000px 500px at 85% -10%,#e0e7ff,transparent),radial-gradient(800px 400px at -10% 110%,#fef3c7,transparent);padding:80px 0 60px}
+.hero{background:radial-gradient(1000px 500px at 85% -10%,#ffe3d1,transparent),radial-gradient(800px 400px at -10% 110%,#fef3c7,transparent);padding:80px 0 60px}
 .hero-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:center}
 .hero p.lead{margin:18px 0 28px}
 .hero-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:26px}
@@ -573,8 +629,8 @@ header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);backdro
 .grid{display:grid;gap:22px;margin-top:44px}
 .g3{grid-template-columns:repeat(3,1fr)}.g2{grid-template-columns:repeat(2,1fr)}.g4{grid-template-columns:repeat(4,1fr)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);transition:.3s}
-.card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(79,70,229,.15)}
-.ico{width:52px;height:52px;border-radius:14px;background:#eef2ff;display:grid;place-items:center;font-size:1.5rem;margin-bottom:16px}
+.card:hover{transform:translateY(-6px);box-shadow:0 18px 40px rgba(255,107,26,.15)}
+.ico{width:52px;height:52px;border-radius:14px;background:#fff1e8;display:grid;place-items:center;font-size:1.5rem;margin-bottom:16px}
 .card p{color:var(--muted);font-size:.96rem}
 
 /* steps */
@@ -585,13 +641,13 @@ header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);backdro
 /* product split */
 .split{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
 .split.rev .split-art{order:-1}
-.split-art{background:linear-gradient(135deg,#eef2ff,#fef3c7);border-radius:28px;padding:34px;box-shadow:var(--shadow)}
+.split-art{background:linear-gradient(135deg,#fff1e8,#fef3c7);border-radius:28px;padding:34px;box-shadow:var(--shadow)}
 .checks{list-style:none;margin:20px 0 26px}
 .checks li{padding:7px 0 7px 32px;position:relative}
 .checks li::before{content:"✓";position:absolute;left:0;top:7px;width:22px;height:22px;border-radius:50%;background:var(--ok);color:#fff;font-size:.8rem;display:grid;place-items:center}
 
 /* video */
-.video-box{position:relative;border-radius:26px;overflow:hidden;background:linear-gradient(135deg,#1e1b4b,#4f46e5);aspect-ratio:16/9;box-shadow:var(--shadow);display:grid;place-items:center;color:#fff}
+.video-box{position:relative;border-radius:26px;overflow:hidden;background:linear-gradient(135deg,#0a1128,#ff6b1a);aspect-ratio:16/9;box-shadow:var(--shadow);display:grid;place-items:center;color:#fff}
 .video-box video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .play{width:84px;height:84px;border-radius:50%;background:#fff;color:var(--primary);display:grid;place-items:center;font-size:2rem;cursor:pointer;border:0;box-shadow:0 0 0 12px rgba(255,255,255,.2);animation:pulse 2s infinite;z-index:2}
 @keyframes pulse{50%{box-shadow:0 0 0 22px rgba(255,255,255,0)}}
@@ -604,7 +660,7 @@ header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);backdro
 
 /* pricing */
 .price-wrap{display:grid;grid-template-columns:1.1fr .9fr;gap:30px;margin-top:44px}
-.price-card{background:linear-gradient(160deg,var(--primary),#7c3aed);color:#fff;border-radius:28px;padding:40px;box-shadow:0 24px 50px rgba(79,70,229,.35)}
+.price-card{background:linear-gradient(160deg,var(--primary),#ff8a3d);color:#fff;border-radius:28px;padding:40px;box-shadow:0 24px 50px rgba(255,107,26,.35)}
 .price-card .big{font-size:3rem;font-weight:800}
 .price-card s{opacity:.7}
 .price-card .checks li::before{background:var(--accent);color:#000}
@@ -634,7 +690,7 @@ header{position:sticky;top:0;z-index:50;background:rgba(255,255,255,.88);backdro
 .faq-q span{transition:.3s}
 
 /* cta */
-.cta{background:linear-gradient(135deg,var(--ink),#312e81);color:#fff;border-radius:32px;padding:64px 30px;text-align:center}
+.cta{background:linear-gradient(135deg,var(--ink),#1b2a5c);color:#fff;border-radius:32px;padding:64px 30px;text-align:center}
 .cta p{color:#cbd5e1;margin:12px auto 28px;max-width:560px}
 
 /* forms */
@@ -645,10 +701,10 @@ form .row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .field input:focus,.field textarea:focus,.field select:focus{outline:2px solid var(--primary);border-color:transparent}
 .info-list{list-style:none}
 .info-list li{display:flex;gap:14px;padding:16px 0;border-bottom:1px solid var(--line)}
-.map-ph{background:repeating-linear-gradient(45deg,#e0e7ff,#e0e7ff 14px,#eef2ff 14px,#eef2ff 28px);border-radius:var(--radius);height:260px;display:grid;place-items:center;color:var(--primary);font-weight:700;margin-top:24px}
+.map-ph{background:repeating-linear-gradient(45deg,#ffe3d1,#ffe3d1 14px,#fff1e8 14px,#fff1e8 28px);border-radius:var(--radius);height:260px;display:grid;place-items:center;color:var(--primary);font-weight:700;margin-top:24px}
 
 /* page hero */
-.page-hero{background:linear-gradient(135deg,#eef2ff,#fef3c7);padding:70px 0;text-align:center}
+.page-hero{background:linear-gradient(135deg,#fff1e8,#fef3c7);padding:70px 0;text-align:center}
 
 /* footer */
 footer{background:var(--ink);color:#cbd5e1;padding:60px 0 24px;margin-top:60px}
@@ -683,6 +739,55 @@ footer a:hover{color:var(--accent)}
   section{padding:60px 0}
 }
 @media(max-width:560px){.g3,.g4,.stats-grid,form .row,.foot-grid{grid-template-columns:1fr}}
+
+/* ===== Web-Lankan-style theme additions ===== */
+.topbar{background:var(--ink);color:#cbd5e1;font-size:.85rem}
+.topbar .container{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:8px 0;flex-wrap:wrap}
+.topbar a{display:inline-flex;gap:6px;align-items:center}
+.topbar a:hover{color:var(--accent)}
+.topbar .links{display:flex;gap:22px}
+
+.hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0a1128 0%,#1b2a5c 100%);color:#fff}
+.hero h1{color:#fff}
+.hero p.lead{color:#cbd5e1}
+.hero .tag{background:rgba(255,255,255,.12);color:#ffd2b3}
+.hero .btn-ghost{color:#fff;border-color:#fff}
+.hero .btn-ghost:hover{background:#fff;color:var(--ink)}
+.hero::before,.hero::after{content:"";position:absolute;border-radius:50%;pointer-events:none}
+.hero::before{width:520px;height:520px;right:-140px;top:-180px;background:radial-gradient(circle,rgba(255,107,26,.55),transparent 70%)}
+.hero::after{width:380px;height:380px;left:-120px;bottom:-200px;border:60px solid rgba(255,255,255,.06)}
+.hero .container{position:relative;z-index:2}
+.hero-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.25;z-index:1}
+
+.talk-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#0a1128,#1b2a5c);color:#fff;text-align:center;padding:110px 0 90px}
+.talk-hero h1{font-size:clamp(2.6rem,7vw,5rem)}
+.talk-hero p{color:#cbd5e1;max-width:620px;margin:16px auto 0}
+.talk-hero::before{content:"";position:absolute;width:560px;height:560px;border-radius:50%;right:-160px;top:-200px;background:radial-gradient(circle,rgba(255,107,26,.6),transparent 70%)}
+.talk-hero::after{content:"";position:absolute;width:420px;height:420px;border-radius:50%;left:-140px;bottom:-220px;border:64px solid rgba(255,255,255,.06)}
+.talk-hero .container{position:relative;z-index:2}
+
+.office-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:40px}
+.office{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:28px;box-shadow:var(--shadow);border-top:5px solid var(--primary)}
+.office .flag{font-size:2rem;margin-bottom:8px}
+.office p{color:var(--muted);font-size:.95rem;margin:4px 0}
+.office a.dir{display:inline-block;margin-top:12px;color:var(--primary);font-weight:600}
+
+.inquiry{display:grid;grid-template-columns:1.1fr .9fr;gap:40px;align-items:start}
+.art-panel{background:linear-gradient(135deg,var(--ink),#1b2a5c);border-radius:28px;padding:40px;color:#fff;min-height:100%}
+.art-panel ul{list-style:none;margin-top:18px}
+.art-panel li{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.12)}
+
+.trust{display:grid;grid-template-columns:auto 1fr;gap:34px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:28px;padding:38px;box-shadow:var(--shadow)}
+.badge{width:130px;height:130px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--accent));display:grid;place-items:center;text-align:center;color:#fff;font-weight:800;font-size:.95rem;line-height:1.2;padding:14px}
+
+.clocks{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;margin-top:26px}
+.clock{background:rgba(255,255,255,.06);border-radius:14px;padding:10px 20px;text-align:center}
+.clock b{display:block;color:var(--accent);font-size:1.3rem}
+.social{display:flex;gap:12px;margin-top:14px}
+.social a{width:38px;height:38px;border-radius:50%;background:#1b2a5c;display:grid;place-items:center;font-weight:700;color:#fff}
+.social a:hover{background:var(--primary)}
+
+@media(max-width:900px){.office-grid,.inquiry,.trust{grid-template-columns:1fr}.trust{text-align:center}.badge{margin:auto}.topbar .container{justify-content:center}}
 `;
 
 // ===================== script.js =====================
