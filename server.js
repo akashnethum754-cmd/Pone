@@ -1,41 +1,10 @@
-const express = require("express");
+const http = require("http");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
-const app = express();
-const DATA_DIR = path.join(__dirname, "data");
-const LEADS_FILE = path.join(DATA_DIR, "leads.json");
-app.use(express.json({ limit: "50kb" }));
-
-function readLeads() { try { return JSON.parse(fs.readFileSync(LEADS_FILE, "utf8")); } catch { return []; } }
-function saveLeads(l) { fs.mkdirSync(DATA_DIR, { recursive: true }); fs.writeFileSync(LEADS_FILE, JSON.stringify(l, null, 2)); }
-const clean = (v, n = 500) => String(v || "").slice(0, n).trim();
-
-// ================= API =================
-app.get("/api/config", (req, res) => res.json({ whatsapp: process.env.WHATSAPP_NUMBER || "94770000000" }));
-
-app.post("/api/contact", (req, res) => {
-  const b = req.body || {};
-  const lead = {
-    id: Date.now(), time: new Date().toISOString(),
-    type: clean(b.type, 20) || "contact", name: clean(b.Name), mobile: clean(b.Mobile),
-    company: clean(b.Institute), interest: clean(b.Interest), message: clean(b.Message, 1500), total: clean(b.total, 20),
-  };
-  if (!lead.mobile) return res.status(400).json({ ok: false, error: "Mobile number required" });
-  const list = readLeads(); list.push(lead); saveLeads(list);
-  res.json({ ok: true });
-});
-
-// open: /api/leads?key=YOUR_ADMIN_KEY
-app.get("/api/leads", (req, res) => {
-  if (!process.env.ADMIN_KEY || req.query.key !== process.env.ADMIN_KEY) return res.status(401).json({ error: "Unauthorized" });
-  res.json(readLeads().reverse());
-});
-
-// ================= WEBSITE (embedded) =================
+// ================= EMBEDDED WEBSITE + ADMIN =================
 const SITE = {};
-
-// ===================== index.html =====================
 SITE["index.html"] = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -306,8 +275,6 @@ SITE["index.html"] = `<!DOCTYPE html>
 </body>
 </html>
 `;
-
-// ===================== style.css =====================
 SITE["style.css"] = `:root{
   --bg:#f5f7fb;--surface:#ffffff;--surface2:#eef1f8;--ink:#0b1020;--muted:#5b6479;--line:#e1e6f0;
   --brand:#6d5efc;--brand2:#00d4c8;--grad:linear-gradient(135deg,#6d5efc,#00d4c8);
@@ -497,8 +464,6 @@ footer a:hover{color:var(--brand)}
   .inv-actions{display:none!important}
 }
 `;
-
-// ===================== script.js =====================
 SITE["script.js"] = `// ================= EDIT THESE: your packages, add-ons and projects =================
 var BRAND = { whatsapp: "94770000000" }; // real number comes from .env (WHATSAPP_NUMBER)
 
@@ -635,7 +600,7 @@ document.addEventListener("DOMContentLoaded", function () {
   var invNo = "LYN-" + new Date().toISOString().slice(2, 10).replace(/-/g, "") + "-" + Math.floor(100 + Math.random() * 900);
   $("#invNo").textContent = invNo;
   $("#invDate").textContent = new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
-  var current = { total: 0, text: "" };
+  var current = { total: 0, text: "", rows: [], pkg: "" };
 
   function renderBill() {
     var pk = PACKAGES.filter(function (p) { return p.id === sel.value; })[0], rows = [[pk.name, 1, pk.price]], sub = pk.price;
@@ -652,7 +617,7 @@ document.addEventListener("DOMContentLoaded", function () {
     $("#tVatLabel").textContent = vp ? "VAT " + vp + "%" : "VAT"; $("#tVat").textContent = fmt(vat);
     $("#tTotal").textContent = "LKR " + fmt(total); $("#tAdv").textContent = fmt(total / 2);
     $("#invClient").textContent = $("#bName").value || "-"; $("#invMobile").textContent = $("#bMobile").value || "";
-    current.total = total;
+    current.total = total; current.rows = rows; current.pkg = pk.name;
     current.text = "Hello LYNKO, I would like this quotation (" + invNo + ")%0A" + rows.map(function (r) { return encodeURIComponent(r[0] + " x" + r[1] + " = LKR " + fmt(r[2])); }).join("%0A") +
       "%0ATOTAL: LKR " + fmt(total) + "%0AName: " + encodeURIComponent($("#bName").value || "-") + "%0AMobile: " + encodeURIComponent($("#bMobile").value || "-");
     current.plain = rows.map(function (r) { return r[0] + " x" + r[1] + " = LKR " + fmt(r[2]); }).join("; ") + "; TOTAL LKR " + fmt(total) + " (" + invNo + ")";
@@ -664,7 +629,7 @@ document.addEventListener("DOMContentLoaded", function () {
   $("#btnPrint").addEventListener("click", function () { renderBill(); window.print(); });
   $("#btnWa").addEventListener("click", function () {
     renderBill();
-    fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "bill", Name: $("#bName").value, Mobile: $("#bMobile").value || "not given", Message: current.plain, total: String(Math.round(current.total)) }) }).catch(function () {});
+    fetch("/api/contact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: "bill", invoice: invNo, package: current.pkg, items: current.rows.map(function (r) { return { name: r[0], qty: r[1], amount: r[2] }; }), Name: $("#bName").value, Mobile: $("#bMobile").value || "not given", Message: current.plain, total: Math.round(current.total) }) }).catch(function () {});
     window.open("https://wa.me/" + BRAND.whatsapp + "?text=" + current.text, "_blank");
   });
 
@@ -689,16 +654,820 @@ document.addEventListener("DOMContentLoaded", function () {
     if (c && c.whatsapp) { BRAND.whatsapp = c.whatsapp; $("#waFloat").href = "https://wa.me/" + c.whatsapp; }
   }).catch(function () {});
 
+
+  // ---- anonymous visit tracking for the admin dashboard ----
+  (function () {
+    var sid = "";
+    try { sid = sessionStorage.getItem("lynko-sid") || ""; } catch (e) {}
+    var isNew = !sid;
+    if (!sid) { sid = Math.random().toString(36).slice(2) + Date.now().toString(36); try { sessionStorage.setItem("lynko-sid", sid); } catch (e) {} }
+    function ping(type) {
+      try { fetch("/api/track", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid: sid, type: type, path: location.pathname || "/", ref: document.referrer || "" }), keepalive: true }).catch(function () {}); } catch (e) {}
+    }
+    ping(isNew ? "view" : "ping");
+    setInterval(function () { if (!document.hidden) ping("ping"); }, 60000);
+  })();
+
   observeReveals();
 });
 `;
+SITE["admin.html"] = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>LYNKO Admin</title>
+<script>
+(function(){try{var t=localStorage.getItem("lynko-theme");if(!t)t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light";document.documentElement.setAttribute("data-theme",t)}catch(e){document.documentElement.setAttribute("data-theme","dark")}})();
+</script>
+<style>
+:root{--bg:#f3f5fb;--surface:#fff;--surface2:#eef1f8;--ink:#0b1020;--muted:#667089;--line:#e2e7f1;--brand:#6d5efc;--brand2:#00d4c8;--grad:linear-gradient(135deg,#6d5efc,#00d4c8);--ok:#16a34a;--warn:#f59e0b;--bad:#ef4444;--shadow:0 8px 26px rgba(20,30,70,.08)}
+[data-theme="dark"]{--bg:#080b17;--surface:#10152a;--surface2:#171d37;--ink:#eef1ff;--muted:#98a2c3;--line:#232b4a;--shadow:0 8px 26px rgba(0,0,0,.4)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5;min-height:100vh}
+button,input,select{font:inherit;color:inherit}
+.hidden{display:none!important}
+.logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.25rem}
+.logo i{width:36px;height:36px;border-radius:10px;background:var(--grad);display:grid;place-items:center;color:#fff;font-style:normal}
+a.btn{text-decoration:none}
+.btn{color:var(--ink);display:inline-flex;align-items:center;gap:8px;padding:10px 18px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:600;transition:.2s}
+.btn:hover{border-color:var(--brand);color:var(--brand)}
+.btn-primary{background:var(--grad);color:#fff;border:0;box-shadow:0 8px 20px rgba(109,94,252,.35)}
+.btn-primary:hover{color:#fff;transform:translateY(-1px)}
+.btn-sm{padding:7px 12px;font-size:.85rem;border-radius:10px}
+.btn-danger:hover{border-color:var(--bad);color:var(--bad)}
 
-app.get(["/", "/index.html"], (req, res) => res.type("html").send(SITE["index.html"]));
-app.get("/style.css", (req, res) => res.type("css").send(SITE["style.css"]));
-app.get("/script.js", (req, res) => res.type("js").send(SITE["script.js"]));
+/* login */
+#login{min-height:100vh;display:grid;place-items:center;padding:20px;background:radial-gradient(700px 400px at 80% -10%,rgba(109,94,252,.28),transparent),radial-gradient(600px 400px at -10% 110%,rgba(0,212,200,.2),transparent)}
+.login-card{width:min(400px,100%);background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:34px;box-shadow:var(--shadow)}
+.login-card h1{font-size:1.5rem;margin:18px 0 4px}
+.login-card p{color:var(--muted);font-size:.92rem;margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-weight:600;font-size:.85rem;margin-bottom:6px}
+.field input{width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--bg)}
+.field input:focus{outline:2px solid var(--brand);border-color:transparent}
+.err{color:var(--bad);font-size:.88rem;min-height:20px;margin-bottom:8px}
 
-// optional: put real project screenshots in an "assets" folder, e.g. assets/img/shop1.jpg
-app.use("/assets", express.static(path.join(__dirname, "assets")));
-app.use((req, res) => res.status(404).send("<h1>404 - Page not found</h1><a href='/'>Go home</a>"));
+/* layout */
+#app{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+aside{background:var(--surface);border-right:1px solid var(--line);padding:22px 16px;position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:6px}
+aside .logo{padding:0 8px 18px}
+.nav-btn{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;border:0;background:none;cursor:pointer;font-weight:600;color:var(--muted);text-align:left;width:100%}
+.nav-btn:hover{background:var(--surface2);color:var(--ink)}
+.nav-btn.on{background:var(--grad);color:#fff}
+.nav-btn .count{margin-left:auto;background:rgba(127,127,127,.2);border-radius:999px;padding:1px 9px;font-size:.75rem}
+.nav-btn.on .count{background:rgba(255,255,255,.25)}
+.side-foot{margin-top:auto;font-size:.78rem;color:var(--muted);padding:0 8px}
+main{padding:24px 28px 60px;min-width:0}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:22px}
+.topbar h2{font-size:1.5rem}
+.top-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+select.sel{padding:9px 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer}
+.live-pill{display:inline-flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);padding:8px 14px;border-radius:999px;font-weight:600;font-size:.88rem}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok);animation:ping 1.6s infinite}
+.dot.off{background:var(--bad);animation:none}
+@keyframes ping{0%{box-shadow:0 0 0 0 rgba(22,163,74,.6)}70%{box-shadow:0 0 0 9px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+.icon-btn{width:40px;height:40px;border-radius:12px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:1.1rem}
+.banner{background:rgba(245,158,11,.14);border:1px solid var(--warn);color:var(--ink);padding:12px 16px;border-radius:14px;margin-bottom:18px;font-size:.9rem}
 
-module.exports = app;
+/* cards */
+.grid{display:grid;gap:16px}
+.kpis{grid-template-columns:repeat(4,1fr);margin-bottom:16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:var(--shadow);min-width:0}
+.card h3{font-size:.95rem;margin-bottom:4px}
+.card .sub{color:var(--muted);font-size:.8rem}
+.kpi small{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em}
+.kpi b{display:block;font-size:1.9rem;margin:6px 0 2px;letter-spacing:-.02em}
+.delta{font-size:.8rem;font-weight:700}
+.delta.up{color:var(--ok)}.delta.down{color:var(--bad)}.delta.flat{color:var(--muted)}
+.kpi .ic{float:right;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:var(--surface2);font-size:1.2rem}
+.row2{grid-template-columns:2fr 1fr;margin-bottom:16px}
+.row3{grid-template-columns:1fr 1fr 1fr;margin-bottom:16px}
+.chart{position:relative;margin-top:14px}
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);padding:8px 12px;border-radius:10px;font-size:.78rem;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .12s;z-index:5;line-height:1.5}
+.axis{fill:var(--muted);font-size:11px}
+.gridline{stroke:var(--line);stroke-dasharray:3 4}
+.legend{display:flex;flex-direction:column;gap:9px;margin-top:12px;font-size:.88rem}
+.legend div{display:flex;align-items:center;gap:9px}
+.legend i{width:10px;height:10px;border-radius:50%;flex:none}
+.legend b{margin-left:auto}
+.donut-wrap{display:flex;justify-content:center;margin-top:10px}
+.bar-row{margin:12px 0}
+.bar-row .top{display:flex;justify-content:space-between;font-size:.87rem;margin-bottom:5px}
+.bar{height:8px;background:var(--surface2);border-radius:99px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--grad);border-radius:99px;transition:width .6s}
+.feed{list-style:none;margin-top:10px;max-height:330px;overflow:auto}
+.feed li{display:flex;gap:11px;padding:10px 0;border-bottom:1px dashed var(--line);font-size:.87rem;animation:slide .4s}
+@keyframes slide{from{opacity:0;transform:translateY(-8px)}}
+.feed .ico{width:32px;height:32px;border-radius:10px;background:var(--surface2);display:grid;place-items:center;flex:none}
+.feed small{color:var(--muted);display:block}
+.empty{color:var(--muted);text-align:center;padding:26px 0;font-size:.9rem}
+
+/* tables */
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.toolbar input{flex:1;min-width:200px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface)}
+.table-wrap{overflow:auto;border-radius:20px;border:1px solid var(--line);background:var(--surface);box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse;font-size:.9rem;min-width:760px}
+th{text-align:left;font-size:.74rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);padding:14px 16px;border-bottom:1px solid var(--line);background:var(--surface2);position:sticky;top:0}
+td{padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer;transition:background .15s}
+tbody tr:hover{background:var(--surface2)}
+td small{color:var(--muted);display:block}
+.badge{display:inline-block;padding:4px 11px;border-radius:999px;font-size:.75rem;font-weight:700}
+.st-new{background:rgba(109,94,252,.15);color:#7c6dff}.st-contacted{background:rgba(14,165,233,.15);color:#0ea5e9}
+.st-in_progress{background:rgba(245,158,11,.16);color:#d98a07}.st-paid{background:rgba(22,163,74,.16);color:#16a34a}
+.st-completed{background:rgba(20,184,166,.16);color:#0d9488}.st-cancelled{background:rgba(239,68,68,.15);color:#ef4444}
+.status-sel{padding:6px 10px;border-radius:10px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:.82rem}
+
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(5,8,20,.6);backdrop-filter:blur(4px);display:none;place-items:center;z-index:100;padding:20px}
+.modal.open{display:grid}
+.modal-in{width:min(560px,100%);max-height:90vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:24px;padding:28px;box-shadow:var(--shadow)}
+.modal-in h3{font-size:1.25rem}
+.detail{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:18px 0}
+.detail small{color:var(--muted);display:block;font-size:.75rem;text-transform:uppercase;letter-spacing:.04em}
+.items{width:100%;min-width:0;font-size:.88rem;margin:10px 0}
+.items td{padding:8px 0;cursor:default}
+.items tr:hover{background:none}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--ink);color:var(--bg);padding:14px 20px;border-radius:16px;font-weight:600;z-index:200;box-shadow:var(--shadow);transform:translateY(30px);opacity:0;transition:.35s;max-width:340px}
+.toast.show{transform:none;opacity:1}
+
+@media(max-width:1100px){.kpis{grid-template-columns:1fr 1fr}.row2,.row3{grid-template-columns:1fr}}
+@media(max-width:820px){
+  #app{grid-template-columns:1fr}
+  aside{position:static;height:auto;flex-direction:row;overflow:auto;padding:12px;border-right:0;border-bottom:1px solid var(--line);align-items:center}
+  aside .logo{padding:0 10px 0 4px}.side-foot{display:none}
+  .nav-btn{width:auto;white-space:nowrap;padding:9px 14px}
+  main{padding:18px 14px 60px}
+}
+@media(max-width:520px){.kpis{grid-template-columns:1fr}.detail{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login">
+  <form class="login-card" id="loginForm" autocomplete="on">
+    <div class="logo"><i>L</i> LYNKO Admin</div>
+    <h1>Welcome back</h1>
+    <p>Sign in to manage orders and view live analytics.</p>
+    <div class="field"><label for="u">Username</label><input id="u" name="username" autocomplete="username" required></div>
+    <div class="field"><label for="pw">Password</label><input id="pw" name="password" type="password" autocomplete="current-password" required></div>
+    <div class="err" id="loginErr"></div>
+    <button class="btn btn-primary" style="width:100%;justify-content:center" type="submit">Sign in</button>
+  </form>
+</div>
+
+<!-- APP -->
+<div id="app" class="hidden">
+  <aside>
+    <div class="logo"><i>L</i> LYNKO</div>
+    <button class="nav-btn on" data-view="overview">📊 Overview</button>
+    <button class="nav-btn" data-view="orders">🧾 Orders <span class="count" id="cOrders">0</span></button>
+    <button class="nav-btn" data-view="leads">✉️ Messages <span class="count" id="cLeads">0</span></button>
+    <div class="side-foot"><div id="dbState"></div><div style="margin-top:4px">All times: Colombo</div></div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <h2 id="title">Overview</h2>
+      <div class="top-right">
+        <span class="live-pill"><span class="dot" id="liveDot"></span><span><b id="liveCount">0</b> live now</span></span>
+        <select class="sel" id="range"><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="1">Today</option></select>
+        <button class="icon-btn" id="theme" title="Dark / Light">🌙</button>
+        <button class="btn btn-sm" id="logout">Logout</button>
+      </div>
+    </div>
+    <div id="dbBanner" class="banner hidden"></div>
+
+    <!-- OVERVIEW -->
+    <section id="v-overview">
+      <div class="grid kpis" id="kpis"></div>
+      <div class="grid row2">
+        <div class="card"><h3>Website traffic</h3><div class="sub">Visits per day</div><div class="chart" id="chTraffic"></div></div>
+        <div class="card"><h3>Order status</h3><div class="sub">Orders in this period</div><div id="donut"></div></div>
+      </div>
+      <div class="grid row2">
+        <div class="card"><h3>Revenue &amp; orders</h3><div class="sub">Confirmed revenue (paid + completed) per day, LKR</div><div class="chart" id="chRevenue"></div></div>
+        <div class="card"><h3>⚡ Live activity</h3><div class="sub">Orders, messages and visits as they happen</div><ul class="feed" id="feed"></ul></div>
+      </div>
+      <div class="grid row3">
+        <div class="card"><h3>Packages</h3><div class="sub">Order value by package</div><div id="pkgs"></div></div>
+        <div class="card"><h3>Devices</h3><div class="sub">Visitors by device</div><div id="devices"></div></div>
+        <div class="card"><h3>Traffic sources</h3><div class="sub">Where visitors come from</div><div id="sources"></div></div>
+      </div>
+    </section>
+
+    <!-- ORDERS -->
+    <section id="v-orders" class="hidden">
+      <div class="toolbar">
+        <input id="oSearch" placeholder="Search name, mobile, invoice, package...">
+        <select class="sel" id="oStatus"><option value="">All statuses</option></select>
+        <a class="btn btn-sm" href="/admin/api/export/orders.csv">⬇ Export CSV</a>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Invoice</th><th>Customer</th><th>Package</th><th>Total</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody id="oBody"></tbody>
+      </table></div>
+    </section>
+
+    <!-- LEADS -->
+    <section id="v-leads" class="hidden">
+      <div class="toolbar">
+        <input id="lSearch" placeholder="Search name, mobile, message...">
+        <select class="sel" id="lStatus"><option value="">All statuses</option></select>
+        <a class="btn btn-sm" href="/admin/api/export/leads.csv">⬇ Export CSV</a>
+      </div>
+      <div class="table-wrap"><table>
+        <thead><tr><th>Customer</th><th>Interested in</th><th>Message</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody id="lBody"></tbody>
+      </table></div>
+    </section>
+  </main>
+</div>
+
+<div class="modal" id="modal"><div class="modal-in" id="modalBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+var $=function(s,r){return(r||document).querySelector(s)},$$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var STATUSES=["new","contacted","in_progress","paid","completed","cancelled"];
+var LABEL={new:"New",contacted:"Contacted",in_progress:"In progress",paid:"Paid",completed:"Completed",cancelled:"Cancelled"};
+var COLOR={new:"#7c6dff",contacted:"#0ea5e9",in_progress:"#f59e0b",paid:"#16a34a",completed:"#14b8a6",cancelled:"#ef4444"};
+var state={orders:[],leads:[],stats:null,view:"overview",es:null,feed:[]};
+
+function esc(s){return String(s==null?"":s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function fmt(n){return Math.round(n||0).toLocaleString("en-US")}
+function short(n){n=n||0;return n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(n>=1e4?0:1)+"k":String(Math.round(n))}
+function when(ts){var d=new Date(ts+19800000);return d.toISOString().slice(0,10)+" "+d.toISOString().slice(11,16)}
+function ago(ts){var s=(Date.now()-ts)/1000;return s<60?"just now":s<3600?Math.floor(s/60)+"m ago":s<86400?Math.floor(s/3600)+"h ago":Math.floor(s/86400)+"d ago"}
+function toast(m){var t=$("#toast");t.textContent=m;t.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(function(){t.classList.remove("show")},3200)}
+function badge(s){return '<span class="badge st-'+esc(s)+'">'+esc(LABEL[s]||s)+'</span>'}
+function waLink(m){var d=String(m||"").replace(/\\D/g,"");if(d.charAt(0)==="0")d="94"+d.slice(1);return "https://wa.me/"+d}
+
+function api(path,opt){
+  opt=opt||{};opt.credentials="same-origin";
+  if(opt.body&&typeof opt.body!=="string"){opt.body=JSON.stringify(opt.body);opt.headers={"Content-Type":"application/json"}}
+  return fetch(path,opt).then(function(r){
+    if(r.status===401&&path.indexOf("login")<0){showLogin();throw new Error("auth")}
+    return r.json().then(function(j){if(!r.ok)throw new Error(j.error||"Error");return j})
+  });
+}
+
+/* ---------- theme ---------- */
+var root=document.documentElement;
+function paintTheme(){$("#theme").textContent=root.getAttribute("data-theme")==="dark"?"☀️":"🌙";if(state.stats)render()}
+$("#theme").onclick=function(){var n=root.getAttribute("data-theme")==="dark"?"light":"dark";root.setAttribute("data-theme",n);try{localStorage.setItem("lynko-theme",n)}catch(e){}paintTheme()};
+
+/* ---------- auth ---------- */
+function showLogin(){if(state.es){state.es.close();state.es=null}$("#app").classList.add("hidden");$("#login").classList.remove("hidden");$("#pw").value=""}
+$("#loginForm").onsubmit=function(e){
+  e.preventDefault();$("#loginErr").textContent="";
+  api("/admin/api/login",{method:"POST",body:{user:$("#u").value,password:$("#pw").value}}).then(boot).catch(function(er){$("#loginErr").textContent=er.message})
+};
+$("#logout").onclick=function(){api("/admin/api/logout",{method:"POST"}).catch(function(){}).then(showLogin)};
+
+/* ---------- views ---------- */
+var TITLES={overview:"Overview",orders:"Orders",leads:"Messages"};
+$$(".nav-btn").forEach(function(b){b.onclick=function(){go(b.dataset.view)}});
+function go(v){state.view=v;$$(".nav-btn").forEach(function(b){b.classList.toggle("on",b.dataset.view===v)});["overview","orders","leads"].forEach(function(x){$("#v-"+x).classList.toggle("hidden",x!==v)});$("#title").textContent=TITLES[v];$("#range").classList.toggle("hidden",v!=="overview")}
+
+/* ---------- data ---------- */
+function loadStats(){return api("/admin/api/stats?days="+$("#range").value).then(function(s){state.stats=s;render()})}
+function loadOrders(){return api("/admin/api/orders").then(function(o){state.orders=o;renderOrders();$("#cOrders").textContent=o.length})}
+function loadLeads(){return api("/admin/api/leads").then(function(l){state.leads=l;renderLeads();$("#cLeads").textContent=l.length})}
+function loadAll(){return Promise.all([loadStats(),loadOrders(),loadLeads()])}
+$("#range").onchange=loadStats;
+
+/* ---------- KPI + charts ---------- */
+function delta(cur,prev){
+  if(!prev&&!cur)return '<span class="delta flat">— no change</span>';
+  if(!prev)return '<span class="delta up">▲ new</span>';
+  var p=(cur-prev)/prev*100;
+  return '<span class="delta '+(p>0.5?"up":p<-0.5?"down":"flat")+'">'+(p>0?"▲":p<0?"▼":"•")+" "+Math.abs(p).toFixed(0)+'% vs previous</span>'
+}
+function render(){
+  var s=state.stats;if(!s)return;
+  var t=s.totals,p=s.prev;
+  $("#kpis").innerHTML=[
+    ["Visits",fmt(t.visits),delta(t.visits,p.visits),"👀",t.unique+" unique visitors"],
+    ["Orders",fmt(t.orders),delta(t.orders,p.orders),"🧾",s.conversion+"% conversion"],
+    ["Pipeline value","LKR "+short(t.pipeline),delta(t.pipeline,p.pipeline),"💼","all active orders"],
+    ["Confirmed revenue","LKR "+short(t.revenue),delta(t.revenue,p.revenue),"💰","paid + completed"]
+  ].map(function(k){return '<div class="card kpi"><span class="ic">'+k[3]+'</span><small>'+k[0]+'</small><b>'+k[1]+'</b>'+k[2]+'<div class="sub" style="margin-top:4px">'+k[4]+'</div></div>'}).join("");
+  $("#liveCount").textContent=s.live.count;
+  chart("#chTraffic",s.series.map(function(d){return{x:d.date,v:d.visits,tip:fmt(d.visits)+" visits"}}),{type:"area",color:"#6d5efc"});
+  chart("#chRevenue",s.series.map(function(d){return{x:d.date,v:d.revenue,tip:"LKR "+fmt(d.revenue)+"<br>"+d.orders+" orders"}}),{type:"bar",color:"#00bfb2",money:true});
+  donut(s.status);
+  var maxV=Math.max.apply(null,s.packages.map(function(x){return x.value}).concat([1]));
+  $("#pkgs").innerHTML=s.packages.length?s.packages.map(function(x){return '<div class="bar-row"><div class="top"><span>'+esc(x.name)+' <small style="color:var(--muted)">× '+x.count+'</small></span><b>LKR '+short(x.value)+'</b></div><div class="bar"><i style="width:'+(x.value/maxV*100)+'%"></i></div></div>'}).join(""):'<div class="empty">No orders yet</div>';
+  list("#devices",s.devices);list("#sources",s.sources);
+  if(!state.feed.length&&s.recent.length)state.feed=s.recent.slice().reverse().map(function(o){return{ico:"🧾",html:"<b>"+esc(o.name||"Customer")+"</b> ordered "+esc(o.package||"a package")+" · LKR "+fmt(o.total),ts:o.ts}});
+  drawFeed();
+  var d=$("#dbState");d.innerHTML="DB: <b>"+(s.db==="mongodb"?"MongoDB ✓":"Local file")+"</b>";
+  var bn=$("#dbBanner");
+  if(s.db!=="mongodb"){bn.classList.remove("hidden");bn.innerHTML="⚠️ <b>MongoDB is not connected.</b> Data is stored in a temporary local file and can be lost on redeploy. "+(s.dbError?"Error: "+esc(s.dbError):"Set <code>MONGODB_URI</code> in your environment variables.")}else bn.classList.add("hidden");
+}
+function list(sel,arr){
+  var tot=arr.reduce(function(a,b){return a+b.count},0)||1;
+  $(sel).innerHTML=arr.length?arr.map(function(x){return '<div class="bar-row"><div class="top"><span>'+esc(x.name)+'</span><b>'+x.count+' <small style="color:var(--muted)">('+Math.round(x.count/tot*100)+'%)</small></b></div><div class="bar"><i style="width:'+(x.count/tot*100)+'%"></i></div></div>'}).join(""):'<div class="empty">No data yet</div>';
+}
+function donut(st){
+  var tot=0,k;for(k in st)tot+=st[k];
+  var r=62,c=2*Math.PI*r,off=0,seg="";
+  if(!tot){seg='<circle cx="80" cy="80" r="'+r+'" fill="none" stroke="var(--line)" stroke-width="20"/>'}
+  else STATUSES.forEach(function(s){var v=st[s]||0;if(!v)return;var len=v/tot*c;seg+='<circle cx="80" cy="80" r="'+r+'" fill="none" stroke="'+COLOR[s]+'" stroke-width="20" stroke-dasharray="'+len+' '+(c-len)+'" stroke-dashoffset="'+(-off)+'" transform="rotate(-90 80 80)"/>';off+=len});
+  $("#donut").innerHTML='<div class="donut-wrap"><svg width="160" height="160" viewBox="0 0 160 160">'+seg+'<text x="80" y="78" text-anchor="middle" font-size="26" font-weight="800" fill="var(--ink)">'+tot+'</text><text x="80" y="98" text-anchor="middle" font-size="11" fill="var(--muted)">orders</text></svg></div><div class="legend">'+STATUSES.map(function(s){return '<div><i style="background:'+COLOR[s]+'"></i>'+LABEL[s]+'<b>'+(st[s]||0)+'</b></div>'}).join("")+'</div>';
+}
+function chart(sel,data,o){
+  var el=$(sel),W=720,H=250,pl=46,pr=10,pt=14,pb=30,iw=W-pl-pr,ih=H-pt-pb;
+  var max=Math.max.apply(null,data.map(function(d){return d.v}));if(max<=0)max=4;
+  var step=Math.pow(10,Math.floor(Math.log10(max)));var nice=Math.ceil(max/step)*step;if(nice/step<2)nice=step*2;max=nice;
+  var n=data.length,bw=iw/n,X=function(i){return pl+(o.type==="bar"?bw*i+bw/2:(n===1?iw/2:iw*i/(n-1)))},Y=function(v){return pt+ih-v/max*ih};
+  var g="";for(var i=0;i<=4;i++){var v=max*i/4,y=Y(v);g+='<line class="gridline" x1="'+pl+'" x2="'+(W-pr)+'" y1="'+y+'" y2="'+y+'"/><text class="axis" x="'+(pl-8)+'" y="'+(y+4)+'" text-anchor="end">'+short(v)+'</text>'}
+  var every=Math.ceil(n/8),lab="";data.forEach(function(d,i){if(i%every===0||i===n-1)lab+='<text class="axis" x="'+X(i)+'" y="'+(H-8)+'" text-anchor="middle">'+d.x.slice(5)+'</text>'});
+  var body="";
+  if(o.type==="bar"){data.forEach(function(d,i){var h=d.v/max*ih,w=Math.max(4,bw*0.62);body+='<rect x="'+(X(i)-w/2)+'" y="'+(pt+ih-h)+'" width="'+w+'" height="'+Math.max(h,d.v?2:0)+'" rx="5" fill="'+o.color+'" opacity=".9"/>'})}
+  else{var pts=data.map(function(d,i){return X(i)+","+Y(d.v)}).join(" ");body='<defs><linearGradient id="ag'+sel.slice(1)+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+o.color+'" stop-opacity=".4"/><stop offset="1" stop-color="'+o.color+'" stop-opacity="0"/></linearGradient></defs><polygon points="'+X(0)+","+(pt+ih)+" "+pts+" "+X(n-1)+","+(pt+ih)+'" fill="url(#ag'+sel.slice(1)+')"/><polyline points="'+pts+'" fill="none" stroke="'+o.color+'" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>'+(n<=31?data.map(function(d,i){return '<circle cx="'+X(i)+'" cy="'+Y(d.v)+'" r="3.5" fill="var(--surface)" stroke="'+o.color+'" stroke-width="2"/>'}).join(""):"")}
+  el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'">'+g+lab+body+'</svg><div class="tip"></div>';
+  var svg=$("svg",el),tip=$(".tip",el);
+  el.onmousemove=function(e){var r=svg.getBoundingClientRect(),x=(e.clientX-r.left)/r.width*W,i=o.type==="bar"?Math.floor((x-pl)/bw):Math.round((x-pl)/iw*(n-1));if(i<0||i>=n){tip.style.opacity=0;return}
+    var d=data[i];tip.innerHTML="<b>"+d.x+"</b><br>"+d.tip;tip.style.left=(X(i)/W*r.width)+"px";tip.style.top=(Y(d.v)/H*r.height)+"px";tip.style.opacity=1};
+  el.onmouseleave=function(){tip.style.opacity=0};
+}
+
+/* ---------- live feed ---------- */
+function pushFeed(ico,html){state.feed.push({ico:ico,html:html,ts:Date.now()});if(state.feed.length>40)state.feed.shift();drawFeed()}
+function drawFeed(){var f=state.feed.slice().reverse().slice(0,14);$("#feed").innerHTML=f.length?f.map(function(x){return '<li><span class="ico">'+x.ico+'</span><div>'+x.html+'<small>'+ago(x.ts)+'</small></div></li>'}).join(""):'<div class="empty">Waiting for activity...</div>'}
+setInterval(function(){if(state.view==="overview")drawFeed()},30000);
+
+function connectStream(){
+  if(state.es)state.es.close();
+  var es=new EventSource("/admin/api/stream");state.es=es;
+  es.onopen=function(){$("#liveDot").classList.remove("off")};
+  es.onerror=function(){$("#liveDot").classList.add("off")};
+  es.addEventListener("live",function(e){$("#liveCount").textContent=JSON.parse(e.data).count});
+  es.addEventListener("visit",function(e){var d=JSON.parse(e.data);$("#liveCount").textContent=d.live;pushFeed(d.device==="Mobile"?"📱":d.device==="Tablet"?"📲":"🖥️","New visitor · "+esc(d.device)+" · from <b>"+esc(d.source)+"</b>");if(state.stats){state.stats.totals.visits++;}});
+  es.addEventListener("order",function(e){var o=JSON.parse(e.data);toast("🧾 New order: LKR "+fmt(o.total)+" from "+(o.name||o.mobile));pushFeed("🧾","<b>New order</b> · "+esc(o.name||o.mobile)+" · "+esc(o.package||"")+" · LKR "+fmt(o.total));loadAll()});
+  es.addEventListener("lead",function(e){var l=JSON.parse(e.data);toast("✉️ New message from "+(l.name||l.mobile));pushFeed("✉️","<b>New message</b> · "+esc(l.name||l.mobile));loadAll()});
+}
+setInterval(function(){if(!$("#app").classList.contains("hidden"))loadStats().catch(function(){})},60000);
+
+/* ---------- tables ---------- */
+function statusSelect(id,cur,kind){return '<select class="status-sel" data-kind="'+kind+'" data-id="'+esc(id)+'">'+STATUSES.map(function(s){return '<option value="'+s+'"'+(s===cur?" selected":"")+'>'+LABEL[s]+'</option>'}).join("")+'</select>'}
+function fillFilter(sel){sel.innerHTML='<option value="">All statuses</option>'+STATUSES.map(function(s){return '<option value="'+s+'">'+LABEL[s]+'</option>'}).join("")}
+fillFilter($("#oStatus"));fillFilter($("#lStatus"));
+["oSearch","oStatus"].forEach(function(i){$("#"+i).oninput=renderOrders});
+["lSearch","lStatus"].forEach(function(i){$("#"+i).oninput=renderLeads});
+function renderOrders(){
+  var q=$("#oSearch").value.toLowerCase(),st=$("#oStatus").value;
+  var rows=state.orders.filter(function(o){return(!st||o.status===st)&&(!q||[o.name,o.mobile,o.invoice,o.package,o.company].join(" ").toLowerCase().indexOf(q)>=0)});
+  $("#oBody").innerHTML=rows.length?rows.map(function(o){return '<tr data-id="'+esc(o.id)+'" data-kind="orders"><td><b>'+esc(o.invoice)+'</b></td><td>'+esc(o.name||"-")+'<small>'+esc(o.mobile)+'</small></td><td>'+esc(o.package||"-")+'</td><td><b>LKR '+fmt(o.total)+'</b></td><td>'+statusSelect(o.id,o.status,"orders")+'</td><td>'+when(o.ts)+'<small>'+ago(o.ts)+'</small></td></tr>'}).join(""):'<tr><td colspan="6" class="empty">No orders found</td></tr>';
+}
+function renderLeads(){
+  var q=$("#lSearch").value.toLowerCase(),st=$("#lStatus").value;
+  var rows=state.leads.filter(function(o){return(!st||o.status===st)&&(!q||[o.name,o.mobile,o.message,o.company].join(" ").toLowerCase().indexOf(q)>=0)});
+  $("#lBody").innerHTML=rows.length?rows.map(function(o){return '<tr data-id="'+esc(o.id)+'" data-kind="leads"><td>'+esc(o.name||"-")+'<small>'+esc(o.mobile)+(o.company?" · "+esc(o.company):"")+'</small></td><td>'+esc(o.interest||"-")+'</td><td style="max-width:300px">'+esc((o.message||"").slice(0,90))+'</td><td>'+statusSelect(o.id,o.status,"leads")+'</td><td>'+when(o.ts)+'<small>'+ago(o.ts)+'</small></td></tr>'}).join(""):'<tr><td colspan="5" class="empty">No messages found</td></tr>';
+}
+function setStatus(kind,id,status){return api("/admin/api/"+kind+"/"+encodeURIComponent(id),{method:"PATCH",body:{status:status}}).then(function(){toast("Status updated");return loadAll()}).catch(function(e){toast(e.message)})}
+document.addEventListener("change",function(e){if(e.target.classList.contains("status-sel")){setStatus(e.target.dataset.kind,e.target.dataset.id,e.target.value)}});
+document.addEventListener("click",function(e){
+  if(e.target.closest(".status-sel"))return;
+  var tr=e.target.closest("tbody tr[data-id]");if(tr)openModal(tr.dataset.kind,tr.dataset.id);
+  if(e.target.id==="modal")closeModal();
+});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")closeModal()});
+
+/* ---------- modal ---------- */
+function closeModal(){$("#modal").classList.remove("open")}
+function openModal(kind,id){
+  var o=state[kind].filter(function(x){return x.id===id})[0];if(!o)return;
+  var items="";
+  if(kind==="orders"&&o.items&&o.items.length)items='<table class="items">'+o.items.map(function(i){return '<tr><td>'+esc(i.name)+' <small style="display:inline">× '+i.qty+'</small></td><td style="text-align:right">LKR '+fmt(i.amount)+'</td></tr>'}).join("")+'<tr><td><b>Total</b></td><td style="text-align:right"><b>LKR '+fmt(o.total)+'</b></td></tr></table>';
+  $("#modalBody").innerHTML='<h3>'+(kind==="orders"?"Order "+esc(o.invoice):"Message")+'</h3><div style="margin-top:6px">'+badge(o.status)+'</div>'+
+   '<div class="detail"><div><small>Customer</small>'+esc(o.name||"-")+'</div><div><small>Mobile</small>'+esc(o.mobile)+'</div><div><small>Company</small>'+esc(o.company||"-")+'</div><div><small>Date</small>'+when(o.ts)+'</div>'+(kind==="orders"?'<div><small>Package</small>'+esc(o.package||"-")+'</div><div><small>Total</small><b>LKR '+fmt(o.total)+'</b></div>':'<div><small>Interested in</small>'+esc(o.interest||"-")+'</div>')+'</div>'+items+
+   (kind==="leads"&&o.message?'<small style="color:var(--muted)">MESSAGE</small><p style="margin-top:4px;white-space:pre-wrap">'+esc(o.message)+'</p>':"")+
+   (kind==="orders"&&o.message?'<details style="margin-top:8px"><summary style="cursor:pointer;color:var(--muted)">Original request</summary><p style="margin-top:6px;font-size:.85rem;white-space:pre-wrap">'+esc(o.message)+'</p></details>':"")+
+   '<div class="modal-actions">'+statusSelect(o.id,o.status,kind)+'<a class="btn btn-sm" target="_blank" rel="noopener" href="'+esc(waLink(o.mobile))+'">💬 WhatsApp</a><a class="btn btn-sm" href="tel:'+esc(o.mobile)+'">📞 Call</a><button class="btn btn-sm btn-danger" id="mDel">🗑 Delete</button><button class="btn btn-sm" id="mClose" style="margin-left:auto">Close</button></div>';
+  $("#modal").classList.add("open");
+  $("#mClose").onclick=closeModal;
+  $("#mDel").onclick=function(){if(!confirm("Delete this record permanently?"))return;api("/admin/api/"+kind+"/"+encodeURIComponent(id),{method:"DELETE"}).then(function(){closeModal();toast("Deleted");loadAll()}).catch(function(e){toast(e.message)})};
+}
+
+/* ---------- boot ---------- */
+function boot(){
+  $("#login").classList.add("hidden");$("#app").classList.remove("hidden");paintTheme();go(state.view);
+  loadAll().then(connectStream).catch(function(){});
+}
+paintTheme();
+api("/admin/api/me").then(boot).catch(function(){showLogin()});
+</script>
+</body>
+</html>
+`;
+
+
+// ================= HELPERS =================
+const COLOMBO = 5.5 * 3600000;
+const DAY = 86400000;
+const dayKey = (ts) => new Date(ts + COLOMBO).toISOString().slice(0, 10);
+const startOfDay = (ts) => Math.floor((ts + COLOMBO) / DAY) * DAY - COLOMBO;
+const uid = () => crypto.randomUUID();
+const clean = (v, n = 500) => String(v == null ? "" : v).slice(0, n).trim();
+const STATUSES = ["new", "contacted", "in_progress", "paid", "completed", "cancelled"];
+const env = (k, d = "") => process.env[k] || d;
+
+// ================= DATA STORES (MongoDB, or JSON file fallback) =================
+function matches(doc, f) {
+  for (const k in f) {
+    const c = f[k];
+    if (c && typeof c === "object") {
+      if ("$gte" in c && !(doc[k] >= c.$gte)) return false;
+      if ("$lt" in c && !(doc[k] < c.$lt)) return false;
+    } else if (doc[k] !== c) return false;
+  }
+  return true;
+}
+
+function fileStore() {
+  const dir = path.join(__dirname, "data");
+  const file = path.join(dir, "db.json");
+  let db = {};
+  try { db = JSON.parse(fs.readFileSync(file, "utf8")); } catch {}
+  let timer = null;
+  const save = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      try { fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(file, JSON.stringify(db)); }
+      catch (e) { console.error("File store write failed:", e.message); }
+    }, 300);
+  };
+  return {
+    kind: "file",
+    async insert(c, d) {
+      const a = (db[c] = db[c] || []);
+      a.push(d);
+      if (c === "visits" && a.length > 20000) a.splice(0, a.length - 20000);
+      save();
+    },
+    async list(c, { filter = {}, sort, limit = 5000 } = {}) {
+      let r = (db[c] || []).filter((d) => matches(d, filter));
+      if (sort) { const [[k, dir]] = Object.entries(sort); r = r.slice().sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * dir); }
+      return r.slice(0, limit).map((x) => ({ ...x }));
+    },
+    async update(c, id, p) { const d = (db[c] || []).find((x) => x.id === id); if (!d) return false; Object.assign(d, p); save(); return true; },
+    async remove(c, id) { const a = db[c] || []; const i = a.findIndex((x) => x.id === id); if (i < 0) return false; a.splice(i, 1); save(); return true; },
+  };
+}
+
+async function mongoStore(uri) {
+  const { MongoClient } = require("mongodb");
+  const client = new MongoClient(uri, { serverSelectionTimeoutMS: 10000 });
+  await client.connect();
+  const db = client.db(env("MONGODB_DB", "lynko"));
+  await db.collection("orders").createIndex({ id: 1 }, { unique: true });
+  await db.collection("orders").createIndex({ ts: -1 });
+  await db.collection("leads").createIndex({ id: 1 }, { unique: true });
+  await db.collection("leads").createIndex({ ts: -1 });
+  await db.collection("visits").createIndex({ ts: -1 });
+  await db.collection("visits").createIndex({ at: 1 }, { expireAfterSeconds: 90 * 86400 }); // keep 90 days
+  return {
+    kind: "mongodb",
+    async insert(c, d) { await db.collection(c).insertOne({ ...d }); },
+    async list(c, { filter = {}, sort, limit = 5000 } = {}) {
+      let q = db.collection(c).find(filter, { projection: { _id: 0 } });
+      if (sort) q = q.sort(sort);
+      return q.limit(limit).toArray();
+    },
+    async update(c, id, p) { const r = await db.collection(c).updateOne({ id }, { $set: p }); return r.matchedCount > 0; },
+    async remove(c, id) { const r = await db.collection(c).deleteOne({ id }); return r.deletedCount > 0; },
+  };
+}
+
+let store = fileStore();
+let dbInfo = { kind: "file", error: "" };
+
+async function connectDb() {
+  const uri = env("MONGODB_URI");
+  if (!uri) { console.log("[db] MONGODB_URI not set: using local file storage (data/db.json)."); return; }
+  try {
+    store = await mongoStore(uri);
+    dbInfo = { kind: "mongodb", error: "" };
+    console.log("[db] Connected to MongoDB.");
+  } catch (e) {
+    dbInfo = { kind: "file", error: e.message };
+    console.error("[db] MongoDB connection FAILED, using local file storage instead:", e.message);
+  }
+}
+
+// ================= AUTH (signed cookie, no extra libraries) =================
+const secret = () => env("SESSION_SECRET") || crypto.createHash("sha256").update("lynko:" + env("ADMIN_PASSWORD")).digest("hex");
+const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+function sign(payload) {
+  const b = b64(payload);
+  return b + "." + crypto.createHmac("sha256", secret()).update(b).digest("base64url");
+}
+function verify(tok) {
+  if (!tok || !env("ADMIN_PASSWORD")) return null;
+  const [b, s] = String(tok).split(".");
+  if (!b || !s) return null;
+  const e = crypto.createHmac("sha256", secret()).update(b).digest("base64url");
+  if (e.length !== s.length || !crypto.timingSafeEqual(Buffer.from(e), Buffer.from(s))) return null;
+  try { const p = JSON.parse(Buffer.from(b, "base64url").toString()); return p.exp > Date.now() ? p : null; } catch { return null; }
+}
+const safeEq = (a, b) => {
+  const x = crypto.createHash("sha256").update(String(a)).digest();
+  const y = crypto.createHash("sha256").update(String(b)).digest();
+  return crypto.timingSafeEqual(x, y);
+};
+function cookies(req) {
+  const o = {};
+  String(req.headers.cookie || "").split(";").forEach((p) => { const i = p.indexOf("="); if (i > 0) o[p.slice(0, i).trim()] = decodeURIComponent(p.slice(i + 1).trim()); });
+  return o;
+}
+const isAdmin = (req) => verify(cookies(req).lynko_admin);
+const isHttps = (req) => (req.headers["x-forwarded-proto"] || "").split(",")[0] === "https" || req.socket.encrypted;
+
+// ================= RATE LIMIT =================
+const hits = new Map();
+function limited(key, max, windowMs) {
+  const now = Date.now();
+  const a = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  if (a.length >= max) { hits.set(key, a); return true; }
+  a.push(now); hits.set(key, a);
+  return false;
+}
+setInterval(() => { const now = Date.now(); for (const [k, a] of hits) { const f = a.filter((t) => now - t < 3600000); f.length ? hits.set(k, f) : hits.delete(k); } }, 600000).unref();
+const ipOf = (req) => String(req.headers["x-forwarded-for"] || req.socket.remoteAddress || "").split(",")[0].trim();
+
+// ================= LIVE (SSE + visitors) =================
+const sseClients = new Set();
+function broadcast(event, data) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const res of sseClients) { try { res.write(msg); } catch {} }
+}
+const live = new Map(); // sid -> { ts, path, device }
+function liveList() {
+  const cut = Date.now() - 5 * 60000;
+  for (const [k, v] of live) if (v.ts < cut) live.delete(k);
+  return [...live.values()];
+}
+setInterval(() => { if (sseClients.size) broadcast("live", { count: liveList().length }); }, 10000).unref();
+setInterval(() => { for (const res of sseClients) { try { res.write(": hb\n\n"); } catch {} } }, 25000).unref();
+
+// ================= HTTP HELPERS =================
+const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".json": "application/json", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".webp": "image/webp", ".gif": "image/gif", ".ico": "image/x-icon", ".mp4": "video/mp4", ".webm": "video/webm", ".woff2": "font/woff2" };
+function send(res, code, body, headers = {}) {
+  const isObj = body && typeof body === "object" && !Buffer.isBuffer(body);
+  res.writeHead(code, { "X-Content-Type-Options": "nosniff", ...(isObj ? { "Content-Type": "application/json" } : {}), ...headers });
+  res.end(isObj ? JSON.stringify(body) : body);
+}
+function readBody(req, max = 100000) {
+  return new Promise((resolve) => {
+    let size = 0; const chunks = [];
+    req.on("data", (c) => { size += c.length; if (size > max) { req.destroy(); resolve(null); } else chunks.push(c); });
+    req.on("end", () => { try { resolve(chunks.length ? JSON.parse(Buffer.concat(chunks).toString()) : {}); } catch { resolve(null); } });
+    req.on("error", () => resolve(null));
+  });
+}
+const adminHeaders = { "Cache-Control": "no-store", "X-Robots-Tag": "noindex, nofollow", "X-Frame-Options": "DENY" };
+
+function deviceOf(ua) {
+  ua = String(ua || "");
+  if (/bot|crawl|spider|slurp|preview|facebookexternalhit|headless/i.test(ua)) return "bot";
+  if (/ipad|tablet/i.test(ua)) return "Tablet";
+  if (/mobi|android|iphone/i.test(ua)) return "Mobile";
+  return "Desktop";
+}
+function sourceOf(ref, host) {
+  if (!ref) return "Direct";
+  try { const h = new URL(ref).hostname.replace(/^www\./, ""); return h === String(host).replace(/^www\./, "").split(":")[0] ? "Direct" : h; } catch { return "Direct"; }
+}
+
+// ================= ANALYTICS =================
+async function stats(days) {
+  days = Math.min(90, Math.max(1, +days || 7));
+  const now = Date.now();
+  const start = startOfDay(now) - (days - 1) * DAY;
+  const prevStart = start - days * DAY;
+  const [visits, orders, leads] = await Promise.all([
+    store.list("visits", { filter: { ts: { $gte: prevStart } }, limit: 60000 }),
+    store.list("orders", { filter: { ts: { $gte: prevStart } }, limit: 20000 }),
+    store.list("leads", { filter: { ts: { $gte: prevStart } }, limit: 20000 }),
+  ]);
+  const confirmed = (o) => o.status === "paid" || o.status === "completed";
+  const active = (o) => o.status !== "cancelled";
+  const pack = (from, to) => {
+    const v = visits.filter((x) => x.ts >= from && x.ts < to);
+    const o = orders.filter((x) => x.ts >= from && x.ts < to);
+    const l = leads.filter((x) => x.ts >= from && x.ts < to);
+    return {
+      visits: v.length, unique: new Set(v.map((x) => x.sid)).size, orders: o.length, leads: l.length,
+      pipeline: o.filter(active).reduce((s, x) => s + (x.total || 0), 0),
+      revenue: o.filter(confirmed).reduce((s, x) => s + (x.total || 0), 0),
+      v, o, l,
+    };
+  };
+  const cur = pack(start, now + 1), prev = pack(prevStart, start);
+  const series = [];
+  for (let i = 0; i < days; i++) {
+    const t = start + i * DAY, k = dayKey(t + 1);
+    series.push({ date: k, visits: 0, orders: 0, revenue: 0, pipeline: 0 });
+  }
+  const idx = Object.fromEntries(series.map((s, i) => [s.date, i]));
+  cur.v.forEach((x) => { const i = idx[dayKey(x.ts)]; if (i != null) series[i].visits++; });
+  cur.o.forEach((x) => {
+    const i = idx[dayKey(x.ts)]; if (i == null) return;
+    series[i].orders++;
+    if (active(x)) series[i].pipeline += x.total || 0;
+    if (confirmed(x)) series[i].revenue += x.total || 0;
+  });
+  const count = (arr, f) => { const m = {}; arr.forEach((x) => { const k = f(x) || "Unknown"; m[k] = (m[k] || 0) + 1; }); return Object.entries(m).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count); };
+  const byStatus = Object.fromEntries(STATUSES.map((s) => [s, 0]));
+  cur.o.forEach((x) => { byStatus[x.status] = (byStatus[x.status] || 0) + 1; });
+  const pk = {};
+  cur.o.filter(active).forEach((x) => { const n = x.package || "Custom"; pk[n] = pk[n] || { name: n, count: 0, value: 0 }; pk[n].count++; pk[n].value += x.total || 0; });
+  const liveNow = liveList();
+  const recent = (await store.list("orders", { sort: { ts: -1 }, limit: 8 }));
+  const strip = ({ v, o, l, ...rest }) => rest;
+  return {
+    days, db: dbInfo.kind, dbError: dbInfo.error,
+    totals: strip(cur), prev: strip(prev),
+    conversion: cur.unique ? +(cur.orders / cur.unique * 100).toFixed(1) : 0,
+    series, status: byStatus,
+    packages: Object.values(pk).sort((a, b) => b.value - a.value),
+    devices: count(cur.v, (x) => x.device),
+    sources: count(cur.v, (x) => x.source).slice(0, 6),
+    live: { count: liveNow.length, pages: count(liveNow, (x) => x.path).slice(0, 5), devices: count(liveNow, (x) => x.device) },
+    recent,
+  };
+}
+
+const csvCell = (v) => { let s = String(v == null ? "" : v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return '"' + s.replace(/"/g, '""') + '"'; };
+
+// ================= REQUEST HANDLER =================
+async function handle(req, res) {
+  const url = new URL(req.url, "http://x");
+  const p = decodeURIComponent(url.pathname).replace(/\/+$/, "") || "/";
+  const m = req.method;
+
+  // ---------- public site ----------
+  if (m === "GET" && (p === "/" || p === "/index.html")) return send(res, 200, SITE["index.html"], { "Content-Type": MIME[".html"] });
+  if (m === "GET" && p === "/style.css") return send(res, 200, SITE["style.css"], { "Content-Type": MIME[".css"] });
+  if (m === "GET" && p === "/script.js") return send(res, 200, SITE["script.js"], { "Content-Type": MIME[".js"] });
+  if (m === "GET" && p === "/api/config") return send(res, 200, { whatsapp: env("WHATSAPP_NUMBER", "94770000000") });
+  if (m === "GET" && p === "/healthz") return send(res, 200, { ok: true, db: dbInfo.kind });
+
+  if (m === "GET" && p.startsWith("/assets/")) {
+    const f = path.normalize(path.join(__dirname, p));
+    const root = path.join(__dirname, "assets") + path.sep;
+    if (!f.startsWith(root)) return send(res, 403, "Forbidden");
+    return fs.stat(f, (e, st) => {
+      if (e || !st.isFile()) return send(res, 404, "Not found");
+      res.writeHead(200, { "Content-Type": MIME[path.extname(f).toLowerCase()] || "application/octet-stream", "Cache-Control": "public, max-age=3600" });
+      fs.createReadStream(f).pipe(res);
+    });
+  }
+
+  // ---------- public API: visit tracking ----------
+  if (m === "POST" && p === "/api/track") {
+    const b = await readBody(req, 4000);
+    const dev = deviceOf(req.headers["user-agent"]);
+    if (!b || dev === "bot" || limited("t:" + ipOf(req), 120, 60000)) return send(res, 204, "");
+    const sid = clean(b.sid, 64);
+    if (!sid) return send(res, 204, "");
+    const page = clean(b.path, 80) || "/";
+    live.set(sid, { ts: Date.now(), path: page, device: dev });
+    if (b.type === "view") {
+      const ts = Date.now(), source = sourceOf(b.ref, req.headers.host);
+      await store.insert("visits", { id: uid(), ts, at: new Date(ts), sid, path: page, device: dev, source });
+      broadcast("visit", { device: dev, source, path: page, ts, live: liveList().length });
+    }
+    return send(res, 204, "");
+  }
+
+  // ---------- public API: contact form + bill/order ----------
+  if (m === "POST" && p === "/api/contact") {
+    if (limited("c:" + ipOf(req), 12, 600000)) return send(res, 429, { ok: false, error: "Too many requests" });
+    const b = await readBody(req);
+    if (!b) return send(res, 400, { ok: false, error: "Bad request" });
+    const mobile = clean(b.Mobile, 30);
+    if (!mobile) return send(res, 400, { ok: false, error: "Mobile number required" });
+    const ts = Date.now();
+    if (b.type === "bill") {
+      const items = (Array.isArray(b.items) ? b.items : []).slice(0, 30).map((i) => ({ name: clean(i.name, 80), qty: Math.max(1, +i.qty || 1), amount: Math.max(0, +i.amount || 0) }));
+      const order = {
+        id: uid(), ts, at: new Date(ts), status: "new",
+        invoice: clean(b.invoice, 30) || "LYN-" + ts, name: clean(b.Name, 100), mobile, company: clean(b.Institute, 100),
+        package: clean(b.package, 80), items, message: clean(b.Message, 1500),
+        total: Math.max(0, Math.round(+b.total || 0)),
+      };
+      await store.insert("orders", order);
+      broadcast("order", order);
+      return send(res, 200, { ok: true });
+    }
+    const lead = {
+      id: uid(), ts, at: new Date(ts), status: "new",
+      name: clean(b.Name, 100), mobile, company: clean(b.Institute, 100), interest: clean(b.Interest, 80), message: clean(b.Message, 1500),
+    };
+    await store.insert("leads", lead);
+    broadcast("lead", lead);
+    return send(res, 200, { ok: true });
+  }
+
+  // ---------- ADMIN (hidden: not linked anywhere on the site) ----------
+  if (p === "/admin" || p.startsWith("/admin/")) {
+    if (m === "GET" && p === "/admin") return send(res, 200, SITE["admin.html"], { "Content-Type": MIME[".html"], ...adminHeaders });
+
+    if (!env("ADMIN_PASSWORD")) return send(res, 503, { error: "Admin disabled: set ADMIN_PASSWORD in your environment." }, adminHeaders);
+
+    if (m === "POST" && p === "/admin/api/login") {
+      const ip = ipOf(req);
+      if (limited("l:" + ip, 6, 15 * 60000)) return send(res, 429, { error: "Too many attempts. Try again in 15 minutes." }, adminHeaders);
+      const b = await readBody(req, 2000);
+      if (!b) return send(res, 400, { error: "Bad request" }, adminHeaders);
+      const okUser = safeEq(b.user || "", env("ADMIN_USER", "admin"));
+      const okPass = safeEq(b.password || "", env("ADMIN_PASSWORD"));
+      if (!(okUser && okPass)) return send(res, 401, { error: "Wrong username or password" }, adminHeaders);
+      const tok = sign({ u: "admin", exp: Date.now() + 12 * 3600000 });
+      return send(res, 200, { ok: true }, { ...adminHeaders, "Set-Cookie": `lynko_admin=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=43200${isHttps(req) ? "; Secure" : ""}` });
+    }
+    if (m === "POST" && p === "/admin/api/logout") {
+      return send(res, 200, { ok: true }, { ...adminHeaders, "Set-Cookie": "lynko_admin=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0" });
+    }
+
+    if (!isAdmin(req)) return send(res, 401, { error: "Not logged in" }, adminHeaders);
+
+    if (m === "GET" && p === "/admin/api/me") return send(res, 200, { ok: true, db: dbInfo.kind, dbError: dbInfo.error }, adminHeaders);
+    if (m === "GET" && p === "/admin/api/stats") return send(res, 200, await stats(url.searchParams.get("days")), adminHeaders);
+
+    if (m === "GET" && p === "/admin/api/stream") {
+      res.writeHead(200, { "Content-Type": "text/event-stream", "Cache-Control": "no-cache, no-transform", Connection: "keep-alive", "X-Accel-Buffering": "no", ...adminHeaders });
+      res.write(`event: live\ndata: ${JSON.stringify({ count: liveList().length })}\n\n`);
+      sseClients.add(res);
+      req.on("close", () => sseClients.delete(res));
+      return;
+    }
+
+    const col = p.startsWith("/admin/api/orders") ? "orders" : p.startsWith("/admin/api/leads") ? "leads" : null;
+    if (col) {
+      const rest = p.split("/").slice(4); // [] or [id]
+      if (m === "GET" && !rest.length) {
+        const list = await store.list(col, { sort: { ts: -1 }, limit: 2000 });
+        return send(res, 200, list, adminHeaders);
+      }
+      if (rest.length === 1 && (m === "PATCH" || m === "DELETE")) {
+        const ctype = String(req.headers["content-type"] || "");
+        if (m === "PATCH") {
+          if (!ctype.includes("application/json")) return send(res, 415, { error: "JSON only" }, adminHeaders);
+          const b = await readBody(req, 4000);
+          if (!b || !STATUSES.includes(b.status)) return send(res, 400, { error: "Invalid status" }, adminHeaders);
+          const ok = await store.update(col, rest[0], { status: b.status });
+          return send(res, ok ? 200 : 404, { ok }, adminHeaders);
+        }
+        const ok = await store.remove(col, rest[0]);
+        return send(res, ok ? 200 : 404, { ok }, adminHeaders);
+      }
+    }
+
+    if (m === "GET" && (p === "/admin/api/export/orders.csv" || p === "/admin/api/export/leads.csv")) {
+      const isOrders = p.includes("orders");
+      const list = await store.list(isOrders ? "orders" : "leads", { sort: { ts: -1 }, limit: 20000 });
+      const head = isOrders ? ["Date", "Invoice", "Name", "Mobile", "Package", "Items", "Total (LKR)", "Status"] : ["Date", "Name", "Mobile", "Company", "Interest", "Message", "Status"];
+      const rows = list.map((o) => {
+        const d = new Date(o.ts + COLOMBO).toISOString().replace("T", " ").slice(0, 16);
+        return isOrders
+          ? [d, o.invoice, o.name, o.mobile, o.package, (o.items || []).map((i) => `${i.name} x${i.qty}`).join("; "), o.total, o.status]
+          : [d, o.name, o.mobile, o.company, o.interest, o.message, o.status];
+      });
+      const csv = "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+      return send(res, 200, csv, { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="${isOrders ? "orders" : "leads"}-${dayKey(Date.now())}.csv"`, ...adminHeaders });
+    }
+    return send(res, 404, { error: "Not found" }, adminHeaders);
+  }
+
+  return send(res, 404, "<h1>404 - Page not found</h1><a href='/'>Go home</a>", { "Content-Type": MIME[".html"] });
+}
+
+function createServer() {
+  return http.createServer((req, res) => {
+    handle(req, res).catch((e) => {
+      console.error("Request error:", e);
+      if (!res.headersSent) send(res, 500, { error: "Server error" });
+      else res.end();
+    });
+  });
+}
+
+async function start(port) {
+  await connectDb();
+  const server = createServer();
+  server.listen(port, "0.0.0.0", () => console.log("LYNKO running on port " + port + (env("ADMIN_PASSWORD") ? " (admin: /admin)" : " (admin disabled: set ADMIN_PASSWORD)")));
+  return server;
+}
+
+module.exports = { start, createServer, connectDb };
