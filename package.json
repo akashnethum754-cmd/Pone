@@ -1,7 +1,7 @@
 {
-  "name": "classnova-website",
-  "version": "1.0.0",
-  "description": "ClassNova tuition software website (single server file)",
+  "name": "lynko-website",
+  "version": "2.0.0",
+  "description": "LYNKO Web Design website + admin dashboard",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
-    "express": "^4.19.2"
+    "mongodb": "^6.8.0"
   }
 }
